@@ -32,9 +32,9 @@ jobs:
         run: |
           pytest --html=report.html --maxfail=1 --disable-warnings
 
-      # Step 5: Upload pytest HTML report as artifact
+      # Step 5: Upload pytest HTML report as artifact (v4)
       - name: Upload pytest report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pytest-report
           path: report.html
