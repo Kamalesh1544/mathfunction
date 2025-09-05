@@ -1,4 +1,4 @@
-import pytest 
+import pytest
 from main import add
 
 @pytest.mark.parametrize("a,b,expected", [
