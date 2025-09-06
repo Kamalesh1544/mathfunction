@@ -86,7 +86,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-html pytest-metadata
+          pip install pytest pytest-html pytest-metadata pytest-html-merger
         shell: bash
 
       - name: Download Build Artifact
@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report-${{ matrix.os }}-${{ matrix.python-version }}
-          path: test-reports/report-${{ matrix.os }}-${{ matrix.python-version }}.html
+          path: test-reports/
 
 ##########################
 # Job: Merge Reports
@@ -130,47 +130,17 @@ jobs:
       - name: Download All Pytest Reports
         uses: actions/download-artifact@v4
         with:
-          name: pytest-report-ubuntu-latest-3.10
-          path: all-reports/
-      - uses: actions/download-artifact@v4
-        with:
-          name: pytest-report-ubuntu-latest-3.11
-          path: all-reports/
-      - uses: actions/download-artifact@v4
-        with:
-          name: pytest-report-windows-latest-3.10
-          path: all-reports/
-      - uses: actions/download-artifact@v4
-        with:
-          name: pytest-report-windows-latest-3.11
-          path: all-reports/
-      - uses: actions/download-artifact@v4
-        with:
-          name: pytest-report-macos-latest-3.10
-          path: all-reports/
-      - uses: actions/download-artifact@v4
-        with:
-          name: pytest-report-macos-latest-3.11
+          name: pytest-report-*
           path: all-reports/
 
-      - name: List all downloaded reports
-        run: ls -R all-reports
-        shell: bash
-
-      - name: Merge All Reports
+      - name: Merge All Pytest Reports
         run: |
-          python -m pytest_html_merger \
-            -i all-reports/report-ubuntu-latest-3.10.html \
-            -i all-reports/report-ubuntu-latest-3.11.html \
-            -i all-reports/report-windows-latest-3.10.html \
-            -i all-reports/report-windows-latest-3.11.html \
-            -i all-reports/report-macos-latest-3.10.html \
-            -i all-reports/report-macos-latest-3.11.html \
-            -o merged-report.html
+          mkdir -p merged
+          python -m pytest_html_merger -i all-reports/**/*.html -o merged/merged-report.html
         shell: bash
 
       - name: Upload Merged Report
         uses: actions/upload-artifact@v4
         with:
           name: merged-pytest-report
-          path: merged-report.html
+          path: merged/merged-report.html
