@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+##########################
+# Job: Build
+##########################
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -44,6 +47,15 @@ jobs:
           echo "Build completed on $(date) for ${{ matrix.os }} with Python ${{ matrix.python-version }}" > build/build-info.txt
         shell: bash
 
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-${{ matrix.os }}-${{ matrix.python-version }}
+          path: build/
+
+##########################
+# Job: Test
+##########################
   test:
     runs-on: ${{ matrix.os }}
     needs: build
@@ -99,6 +111,9 @@ jobs:
           name: pytest-report-${{ matrix.os }}-${{ matrix.python-version }}
           path: test-reports/
 
+##########################
+# Job: Merge Reports
+##########################
   merge-reports:
     runs-on: ubuntu-latest
     needs: test
@@ -112,11 +127,31 @@ jobs:
           pip install pytest-html-merger
         shell: bash
 
-      # Download all uploaded report artifacts to all-reports/
-      - name: Download All Pytest HTML Reports
+      - name: Download All Pytest Reports
         uses: actions/download-artifact@v4
         with:
-          path: all-reports/
+          name: pytest-report-ubuntu-latest-3.10
+          path: all-reports/ubuntu-3.10
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-ubuntu-latest-3.11
+          path: all-reports/ubuntu-3.11
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-windows-latest-3.10
+          path: all-reports/windows-3.10
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-windows-latest-3.11
+          path: all-reports/windows-3.11
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-macos-latest-3.10
+          path: all-reports/macos-3.10
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-macos-latest-3.11
+          path: all-reports/macos-3.11
 
       - name: Merge All Pytest Reports
         run: |
@@ -124,7 +159,7 @@ jobs:
           python -m pytest_html_merger -i all-reports/**/*.html -o merged/merged-report.html
         shell: bash
 
-      - name: Upload Merged Pytest Report
+      - name: Upload Merged Report
         uses: actions/upload-artifact@v4
         with:
           name: merged-pytest-report
