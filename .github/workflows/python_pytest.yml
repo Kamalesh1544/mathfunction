@@ -52,6 +52,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-html pytest-metadata pytest-html-merger
+        shell: bash
 
       ##########################
       # Step 5: Build Project
@@ -60,6 +61,7 @@ jobs:
         run: |
           mkdir -p build
           echo "Build completed on $(date) for ${{ matrix.os }} with Python ${{ matrix.python-version }}" > build/build-info.txt
+        shell: bash
 
       ##########################
       # Step 6: Run Pytest and Generate Report
@@ -67,10 +69,8 @@ jobs:
       - name: Run Pytest Tests and Generate HTML Report
         run: |
           mkdir -p test-reports
-          python -m pytest \
-            --html=test-reports/report-${{ matrix.os }}-${{ matrix.python-version }}.html \
-            --self-contained-html \
-            --disable-warnings || true
+          python -m pytest --html=test-reports/report-${{ matrix.os }}-${{ matrix.python-version }}.html --self-contained-html --disable-warnings || true
+        shell: bash
 
       ##########################
       # Step 7: Upload Build Artifact
@@ -111,52 +111,53 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest-html-merger
+        shell: bash
 
       ##########################
-      # Step 3: Download All Reports
+      # Step 3: Download All Pytest Reports
       ##########################
-      - name: Download Pytest Reports for Ubuntu 3.10
+      - name: Download Ubuntu Reports
         uses: actions/download-artifact@v4
         with:
           name: pytest-report-ubuntu-latest-3.10
           path: all-reports/
-      - name: Download Pytest Reports for Ubuntu 3.11
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: pytest-report-ubuntu-latest-3.11
           path: all-reports/
-      - name: Download Pytest Reports for Windows 3.10
+
+      - name: Download Windows Reports
         uses: actions/download-artifact@v4
         with:
           name: pytest-report-windows-latest-3.10
           path: all-reports/
-      - name: Download Pytest Reports for Windows 3.11
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: pytest-report-windows-latest-3.11
           path: all-reports/
-      - name: Download Pytest Reports for MacOS 3.10
+
+      - name: Download MacOS Reports
         uses: actions/download-artifact@v4
         with:
           name: pytest-report-macos-latest-3.10
           path: all-reports/
-      - name: Download Pytest Reports for MacOS 3.11
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: pytest-report-macos-latest-3.11
           path: all-reports/
 
       ##########################
-      # Step 4: Merge All HTML Reports
+      # Step 4: Merge All Reports into Single HTML
       ##########################
-      - name: Merge All Reports into Single HTML
+      - name: Merge All Reports
         run: |
           python -m pytest_html_merger --output merged-report.html all-reports/*.html
+        shell: bash
 
       ##########################
-      # Step 5: Upload Merged Report
+      # Step 5: Upload Final Merged Report
       ##########################
-      - name: Upload Final Merged HTML Report
+      - name: Upload Merged HTML Report
         uses: actions/upload-artifact@v4
         with:
           name: merged-pytest-report
