@@ -69,7 +69,10 @@ jobs:
       - name: Run Pytest Tests and Generate HTML Report
         run: |
           mkdir -p test-reports
-          python -m pytest --html=test-reports/report-${{ matrix.os }}-${{ matrix.python-version }}.html --self-contained-html --disable-warnings || true
+          python -m pytest \
+            --html=test-reports/report-${{ matrix.os }}-${{ matrix.python-version }}.html \
+            --self-contained-html \
+            --disable-warnings || true
         shell: bash
 
       ##########################
@@ -151,7 +154,14 @@ jobs:
       ##########################
       - name: Merge All Reports
         run: |
-          python -m pytest_html_merger --output merged-report.html all-reports/*.html
+          python -m pytest_html_merger \
+            -i all-reports/report-macos-latest-3.10.html \
+            -i all-reports/report-macos-latest-3.11.html \
+            -i all-reports/report-ubuntu-latest-3.10.html \
+            -i all-reports/report-ubuntu-latest-3.11.html \
+            -i all-reports/report-windows-latest-3.10.html \
+            -i all-reports/report-windows-latest-3.11.html \
+            -o merged-report.html
         shell: bash
 
       ##########################
