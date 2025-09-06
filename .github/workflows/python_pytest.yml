@@ -86,6 +86,7 @@ jobs:
           path: build/
 
       - name: Run tests
+        # The step will fail if tests fail (exit code 1), but we always generate the report
         run: |
           python -m pytest \
             --html=report.html \
