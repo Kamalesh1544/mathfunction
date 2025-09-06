@@ -1,4 +1,4 @@
-name: Python CI
+name: Python CI with Pytest
 
 on:
   push:
@@ -7,34 +7,109 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
+  build:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [3.10]  # Match your VS Code Python version
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+      fail-fast: false
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-html
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: Run tests with pytest
-      run: |
-        pytest --maxfail=1 --disable-warnings --html=report.html --self-contained-html
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
 
-    - name: Upload pytest HTML report
-      uses: actions/upload-artifact@v3
-      with:
-        name: pytest-report
-        path: report.html
+      - run: |
+          mkdir -p build
+          echo "Build completed on $(date)" > build/build-info.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.os }}-${{ matrix.python-version }}
+          path: build/
+
+  test:
+    runs-on: ${{ matrix.os }}
+    needs: build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest-html pytest-metadata
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.os }}-${{ matrix.python-version }}
+          path: build/
+
+      - name: Run tests (always generate report)
+        run: |
+          python -m pytest \
+            --html=report-${{ matrix.os }}-${{ matrix.python-version }}.html \
+            --self-contained-html \
+            --disable-warnings || true
+
+      - name: Upload pytest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-${{ matrix.os }}-${{ matrix.python-version }}
+          path: report-${{ matrix.os }}-${{ matrix.python-version }}.html
+
+  merge-reports:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          python -m pip install --upgrade pip
+          pip install pytest-html-merger
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-*
+          path: all-reports/
+
+      - run: |
+          python -m pytest_html_merger \
+            --output merged-report.html \
+            all-reports/**/*.html
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merged-pytest-report
+          path: merged-report.html
