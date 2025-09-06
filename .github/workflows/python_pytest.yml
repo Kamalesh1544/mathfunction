@@ -6,104 +6,153 @@ on:
   pull_request:
     branches: [ main ]
 
+##########################
+# Job: Build and Test
+##########################
 jobs:
-  build:
+  build-and-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.10", "3.11"]
-      fail-fast: false
+      fail-fast: false  # Run all combinations even if one fails
 
     steps:
-      - uses: actions/checkout@v3
+      ##########################
+      # Step 1: Checkout Code
+      ##########################
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      ##########################
+      # Step 2: Setup Python
+      ##########################
+      - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: actions/cache@v3
+      ##########################
+      # Step 3: Cache Pip Dependencies
+      ##########################
+      - name: Cache Pip Dependencies
+        uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - run: |
+      ##########################
+      # Step 4: Install Dependencies
+      ##########################
+      - name: Install Python Dependencies
+        run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest pytest-html pytest-metadata pytest-html-merger
 
-      - run: |
+      ##########################
+      # Step 5: Build Project
+      ##########################
+      - name: Build Project
+        run: |
           mkdir -p build
-          echo "Build completed on $(date)" > build/build-info.txt
+          echo "Build completed on $(date) for ${{ matrix.os }} with Python ${{ matrix.python-version }}" > build/build-info.txt
 
-      - uses: actions/upload-artifact@v4
+      ##########################
+      # Step 6: Run Pytest and Generate Report
+      ##########################
+      - name: Run Pytest Tests and Generate Report
+        run: |
+          python -m pytest \
+            --html=report-${{ matrix.os }}-${{ matrix.python-version }}.html \
+            --self-contained-html \
+            --disable-warnings || true
+        # || true ensures workflow continues even if tests fail
+
+      ##########################
+      # Step 7: Upload Build Artifact
+      ##########################
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ matrix.os }}-${{ matrix.python-version }}
+          name: build-artifact-${{ matrix.os }}-${{ matrix.python-version }}
           path: build/
 
-  test:
-    runs-on: ${{ matrix.os }}
-    needs: build
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11"]
-      fail-fast: false
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest-html pytest-metadata
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts-${{ matrix.os }}-${{ matrix.python-version }}
-          path: build/
-
-      - name: Run tests (always generate report)
-        run: python -m pytest --html=report-${{ matrix.os }}-${{ matrix.python-version }}.html --self-contained-html --disable-warnings || true
-
-      - name: Upload pytest report
-        if: always()
+      ##########################
+      # Step 8: Upload Pytest Report
+      ##########################
+      - name: Upload Pytest HTML Report
+        if: always()  # Always upload report even if tests fail
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report-${{ matrix.os }}-${{ matrix.python-version }}
           path: report-${{ matrix.os }}-${{ matrix.python-version }}.html
 
+##########################
+# Job: Merge All Reports
+##########################
   merge-reports:
     runs-on: ubuntu-latest
-    needs: test
+    needs: build-and-test  # Wait for all build-and-test jobs to finish
     steps:
-      - uses: actions/checkout@v3
+      ##########################
+      # Step 1: Checkout Code
+      ##########################
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - run: |
+      ##########################
+      # Step 2: Install Pytest HTML Merger
+      ##########################
+      - name: Install pytest-html-merger
+        run: |
           python -m pip install --upgrade pip
           pip install pytest-html-merger
 
+      ##########################
+      # Step 3: Download All Reports
+      ##########################
+      - name: Download Pytest Reports from All Jobs
+        uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-ubuntu-latest-3.10
+          path: all-reports/
       - uses: actions/download-artifact@v4
         with:
-          name: pytest-report-*
+          name: pytest-report-ubuntu-latest-3.11
+          path: all-reports/
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-windows-latest-3.10
+          path: all-reports/
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-windows-latest-3.11
+          path: all-reports/
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-macos-latest-3.10
+          path: all-reports/
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report-macos-latest-3.11
           path: all-reports/
 
-      - run: |
-          python -m pytest_html_merger --output merged-report.html all-reports/**/*.html
+      ##########################
+      # Step 4: Merge HTML Reports
+      ##########################
+      - name: Merge HTML Reports into Single Report
+        run: |
+          python -m pytest_html_merger --output merged-report.html all-reports/*.html
 
-      - uses: actions/upload-artifact@v4
+      ##########################
+      # Step 5: Upload Merged Report
+      ##########################
+      - name: Upload Merged HTML Report
+        uses: actions/upload-artifact@v4
         with:
           name: merged-pytest-report
           path: merged-report.html
