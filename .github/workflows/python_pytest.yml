@@ -36,7 +36,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      # Fake build step (ensures artifact always exists)
+      # Fake build step to create folder (avoids artifact errors)
       - name: Build project
         run: |
           mkdir -p build
@@ -45,7 +45,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: build-artifacts-${{ matrix.os }}-${{ matrix.python-version }}
           path: build/
 
   test:
@@ -82,7 +82,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: build-artifacts-${{ matrix.os }}-${{ matrix.python-version }}
           path: build/
 
       - name: Run tests
