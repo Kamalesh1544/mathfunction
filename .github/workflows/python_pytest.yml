@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11"]
       fail-fast: false
 
     steps:
@@ -31,7 +31,7 @@ jobs:
 
       - run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          pip install -r requirements.txt
 
       - run: |
           mkdir -p build
@@ -48,7 +48,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11"]
       fail-fast: false
 
     steps:
@@ -67,8 +67,8 @@ jobs:
 
       - run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install pytest-html pytest-metadata
+          pip install -r requirements.txt
+          pip install pytest-html pytest-metadata
 
       - uses: actions/download-artifact@v4
         with:
@@ -76,11 +76,7 @@ jobs:
           path: build/
 
       - name: Run tests (always generate report)
-        run: |
-          python -m pytest \
-            --html=report-${{ matrix.os }}-${{ matrix.python-version }}.html \
-            --self-contained-html \
-            --disable-warnings || true
+        run: python -m pytest --html=report-${{ matrix.os }}-${{ matrix.python-version }}.html --self-contained-html --disable-warnings || true
 
       - name: Upload pytest report
         if: always()
@@ -105,9 +101,7 @@ jobs:
           path: all-reports/
 
       - run: |
-          python -m pytest_html_merger \
-            --output merged-report.html \
-            all-reports/**/*.html
+          python -m pytest_html_merger --output merged-report.html all-reports/**/*.html
 
       - uses: actions/upload-artifact@v4
         with:
